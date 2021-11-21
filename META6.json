@@ -8,7 +8,7 @@
   "depends": [
     "Red"
   ],
-  "description": "blah blah blah",
+  "description": "A factory for testing code using Red",
   "license": "Artistic-2.0",
   "name": "RedFactory",
   "perl": "6.d",
