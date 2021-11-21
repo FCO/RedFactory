@@ -1,0 +1,26 @@
+{
+  "auth": "cpan:fco",
+  "authors": [
+    ""
+  ],
+  "build-depends": [
+  ],
+  "depends": [
+    "Red"
+  ],
+  "description": "blah blah blah",
+  "license": "Artistic-2.0",
+  "name": "RedFactory",
+  "perl": "6.d",
+  "provides": {
+    "RedFactory": "lib/RedFactory.rakumod"
+  },
+  "resources": [
+  ],
+  "source-url": "https://github.com/FCO/RedFactory.git",
+  "tags": [
+  ],
+  "test-depends": [
+  ],
+  "version": "0.0.1"
+}

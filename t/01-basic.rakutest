@@ -1,0 +1,200 @@
+use Test;
+use Red;
+use RedFactory;
+
+model Person {...}
+
+model Post is rw {
+    has Int         $.id        is serial;
+    has Int         $!author-id is referencing( *.id, :model<Person> );
+    has Str         $.title     is unique;
+    has Str         $.body      is column;
+    has Person      $.author    is relationship{ .author-id };
+    has Bool        $.deleted   is column = False;
+    has DateTime    $.created   is column .= now;
+    has Set         $.tags      is column{
+        :type<string>,
+        :deflate{ .keys.join: "," },
+        :inflate{ set(.split: ",") }
+    } = set();
+    method delete { $!deleted = True; self.^save }
+}
+
+model Person is rw {
+    has Int  $.id            is serial;
+    has Str  $.name          is column;
+    has Post @.posts         is relationship{ .author-id };
+    method active-posts { @!posts.grep: not *.deleted }
+}
+
+factory "person", :model(Person), {
+    .name = "John";
+    factory "author";
+}
+
+factory "post", :model(Post), {
+    .title = { "post title { .counter-by-factory }" };
+    .body  = { (.title ~ "\n") x 10 };
+    .tags  = set <tag1 tag2 tag3>;
+
+    trait "deleted", {
+        .deleted = True;
+    }
+}
+
+RedFactory.run: {
+    subtest {
+        given .args-for: "post" {
+            isa-ok $_, Hash;
+            is-deeply $_, %(
+                :title("post title 1"),
+                :body("post title 1\n" x 10),
+                :tags(set <tag1 tag2 tag3>),
+            )
+        }
+
+        given .args-for: "post", "deleted" {
+            isa-ok $_, Hash;
+            is-deeply $_, %(
+                :title("post title 2"),
+                :body("post title 2\n" x 10),
+                :tags(set <tag1 tag2 tag3>),
+                :deleted,
+            )
+        }
+
+        given .args-for: "post", :title<bla> {
+            isa-ok $_, Hash;
+            is-deeply $_, %(
+                :title("bla"),
+                :body("bla\n" x 10),
+                :tags(set <tag1 tag2 tag3>),
+            )
+        }
+
+        given .args-for: "post", :title{ "ble{ .counter-by-factory }" }, :tags(set <a e i o u>) {
+            isa-ok $_, Hash;
+            is-deeply $_, %(
+                :title("ble4"),
+                :body("ble4\n" x 10),
+                :tags(set <a e i o u>),
+            )
+        }
+
+        given .args-for: "post", "deleted", :!deleted {
+            isa-ok $_, Hash;
+            is-deeply $_, %(
+                :title("post title 5"),
+                :body("post title 5\n" x 10),
+                :tags(set <tag1 tag2 tag3>),
+                :!deleted,
+            )
+        }
+    }, "args-for";
+
+    subtest {
+        given .new: "post" {
+            isa-ok $_, Post;
+            isa-ok $_, Red::Model;
+            ok !.^is-on-db;
+            is .title, "post title 6";
+            is .body, "post title 6\n" x 10;
+            is-deeply .tags, set <tag1 tag2 tag3>;
+            is .deleted, False;
+        }
+
+        given .new: "post", "deleted" {
+            isa-ok $_, Post;
+            isa-ok $_, Red::Model;
+            ok !.^is-on-db;
+            is .title, "post title 7";
+            is .body, "post title 7\n" x 10;
+            is-deeply .tags, set <tag1 tag2 tag3>;
+            is .deleted, True;
+        }
+
+        given .new: "post", :title<bla> {
+            isa-ok $_, Post;
+            isa-ok $_, Red::Model;
+            ok !.^is-on-db;
+            is .title, "bla";
+            is .body, "bla\n" x 10;
+            is-deeply .tags, set <tag1 tag2 tag3>;
+            is .deleted, False;
+        }
+
+        given .new: "post", :title{ "ble{ .counter-by-factory }" }, :tags(set <a e i o u>) {
+            isa-ok $_, Post;
+            isa-ok $_, Red::Model;
+            ok !.^is-on-db;
+            is .title, "ble9";
+            is .body, "ble9\n" x 10;
+            is-deeply .tags, set <a e i o u>;
+            is .deleted, False;
+        }
+
+        given .new: "post", "deleted", :!deleted {
+            isa-ok $_, Post;
+            isa-ok $_, Red::Model;
+            ok !.^is-on-db;
+            is .title, "post title 10";
+            is .body, "post title 10\n" x 10;
+            is-deeply .tags, set <tag1 tag2 tag3>;
+            is .deleted, False;
+        }
+    }, "new";
+
+    subtest {
+        given .create: "post" {
+            isa-ok $_, Post;
+            isa-ok $_, Red::Model;
+            ok .^is-on-db;
+            is .title, "post title 11";
+            is .body, "post title 11\n" x 10;
+            is-deeply .tags, set <tag1 tag2 tag3>;
+            is .deleted, False;
+        }
+
+        given .create: "post", "deleted" {
+            isa-ok $_, Post;
+            isa-ok $_, Red::Model;
+            ok .^is-on-db;
+            is .title, "post title 12";
+            is .body, "post title 12\n" x 10;
+            is-deeply .tags, set <tag1 tag2 tag3>;
+            is .deleted, True;
+        }
+
+        given .create: "post", :title<bla> {
+            isa-ok $_, Post;
+            isa-ok $_, Red::Model;
+            ok .^is-on-db;
+            is .title, "bla";
+            is .body, "bla\n" x 10;
+            is-deeply .tags, set <tag1 tag2 tag3>;
+            is .deleted, False;
+        }
+
+        given .create: "post", :title{ "ble{ .counter-by-factory }" }, :tags(set <a e i o u>) {
+            isa-ok $_, Post;
+            isa-ok $_, Red::Model;
+            ok .^is-on-db;
+            is .title, "ble14";
+            is .body, "ble14\n" x 10;
+            is-deeply .tags, set <a e i o u>;
+            is .deleted, False;
+        }
+
+        given .create: "post", "deleted", :!deleted {
+            isa-ok $_, Post;
+            isa-ok $_, Red::Model;
+            ok .^is-on-db;
+            is .title, "post title 15";
+            is .body, "post title 15\n" x 10;
+            is-deeply .tags, set <tag1 tag2 tag3>;
+            is .deleted, False;
+        }
+    }, "create";
+}
+
+done-testing;
