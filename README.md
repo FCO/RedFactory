@@ -76,7 +76,7 @@ is-deeply @posts, ["Post title 10", "Post title 9", "Post title 8"];
 DESCRIPTION
 ===========
 
-RedFactory is ...
+RedFactory is a easier way of testing code that uses Red
 
 AUTHOR
 ======

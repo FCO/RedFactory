@@ -248,7 +248,7 @@ is-deeply @posts, ["Post title 10", "Post title 9", "Post title 8"];
 
 =head1 DESCRIPTION
 
-RedFactory is ...
+RedFactory is a easier way of testing code that uses Red
 
 =head1 AUTHOR
 
