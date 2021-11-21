@@ -41,9 +41,9 @@ factory "person", :model(Person), {
 
    .first-name = "john";
    .last-name  = "doe";
-   .email      = { "{ .first-name }{ .PAR("number") // .counter-by-model }@domain.com" }
+   .email      = -> $_, :$number = .counter-by-model { "{ .first-name }{ $number }@domain.com" }
 
-   .posts      = { factory-args .PAR("num-of-posts") // 0, "post" }
+   .posts      = -> :$num-of-posts = 0 { factory-args $num-of-posts, "post" }
 
    trait "disabled", {
       .disabled-at = now
@@ -53,7 +53,7 @@ factory "person", :model(Person), {
 factory "post", :model(Post), {
 
     .title = { "Post title { .counter-by-model }" };
-    .body  = { (.title ~ "\n") x (.PAR("title-repetition") // 3) }
+    .body  = -> $_, :$title-repetition = 3 { (.title ~ "\n") x $title-repetition }
 
 }
 
@@ -63,7 +63,7 @@ use Test;
 
 my $*RED-DB = factory-db;
 
-my &get-recent-author's-posts'-titles = get-controller's-help("get-recent-author's-posts");
+my &get-recent-author's-posts'-titles = get-controller's-help("get-recent-author's-posts'-titles");
 
 # Create the needed person with posts
 my $author = factory-create "person", :PARS{ :10num-of-posts };

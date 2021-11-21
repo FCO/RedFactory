@@ -63,6 +63,7 @@ class Factory is Any {
         my $traits = $fac.^attr: '%!traits';
         $traits.set_value: $fac, my % = |$traits.get_value($fac), $name => &block;
     }
+    method ^PARS($fac)         { $fac.^attr('%!PARS').get_value($fac) }
     method !counter-by-factory { ++%factory-counter{ self.factory-name } }
     method !counter-by-model   { ++%model-counter{ self.^model } }
     method !global-counter     { ++$global-counter }
@@ -87,8 +88,7 @@ method ^factory($, Str $fname, &block, Red::Model :$model is copy) {
                 Proxy.new:
                     FETCH => method {
                         my $val = $a.get_value: SELF;
-                        return $val.(SELF) if $val ~~ Callable;
-                        $val
+                        get-value SELF, $val
                     },
                     STORE => method ($value) {
                         $a.set_value: SELF, SELF.^data{ $attr-name } = $value
@@ -127,7 +127,7 @@ multi method args-for(Str $fname, +@traits, *%pars --> Hash()) {
     my %data = |$factory.^data, |%pars;
     %data.kv.map: -> $k, $v {
         next if $k eq "PARS";
-        $k => $v ~~ Callable ?? $v.($factory) !! $v
+        $k => get-value $factory, $v
     },
 }
 
@@ -159,6 +159,16 @@ sub factory-run(|c) is export { RedFactory.run: |c }
 method run(&block) {
     my $*RED-DB = self.database;
     block self
+}
+
+sub get-value(Factory $factory, $v) {
+        do if $v ~~ Callable {
+            my %PARS := $factory.^PARS<>;
+            my %pars is Set = $v.signature.params.grep(*.named).map: *.name.substr: 1;
+            $v.(|($factory if $v.count), |%PARS.grep({ %pars{ .key } }).Hash)
+        } else {
+            $v
+        }
 }
 
 =begin pod
@@ -203,9 +213,9 @@ factory "person", :model(Person), {
 
    .first-name = "john";
    .last-name  = "doe";
-   .email      = { "{ .first-name }{ .PAR("number") // .counter-by-model }@domain.com" }
+   .email      = -> $_, :$number = .counter-by-model { "{ .first-name }{ $number }@domain.com" }
 
-   .posts      = { factory-args .PAR("num-of-posts") // 0, "post" }
+   .posts      = -> :$num-of-posts = 0 { factory-args $num-of-posts, "post" }
 
    trait "disabled", {
       .disabled-at = now
@@ -215,7 +225,7 @@ factory "person", :model(Person), {
 factory "post", :model(Post), {
 
     .title = { "Post title { .counter-by-model }" };
-    .body  = { (.title ~ "\n") x (.PAR("title-repetition") // 3) }
+    .body  = -> $_, :$title-repetition = 3 { (.title ~ "\n") x $title-repetition }
 
 }
 
