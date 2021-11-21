@@ -33,8 +33,9 @@ factory "person", :model(Person), {
 }
 
 factory "post", :model(Post), {
+    .PAR("x-times") = 10;
     .title = { "post title { .counter-by-factory }" };
-    .body  = { (.title ~ "\n") x 10 };
+    .body  = { (.title ~ "\n") x .PAR("x-times") };
     .tags  = set <tag1 tag2 tag3>;
 
     trait "deleted", {
@@ -195,6 +196,37 @@ RedFactory.run: {
             is .deleted, False;
         }
     }, "create";
+
+    subtest {
+        given .create: "post", :PARS{ :20x-times } {
+            isa-ok $_, Post;
+            isa-ok $_, Red::Model;
+            ok .^is-on-db;
+            is .title, "post title 16";
+            is .body, "post title 16\n" x 20;
+            is-deeply .tags, set <tag1 tag2 tag3>;
+            is .deleted, False;
+        }
+
+        given .new: "post", :PARS{ :2x-times } {
+            isa-ok $_, Post;
+            isa-ok $_, Red::Model;
+            ok !.^is-on-db;
+            is .title, "post title 17";
+            is .body, "post title 17\n" x 2;
+            is-deeply .tags, set <tag1 tag2 tag3>;
+            is .deleted, False;
+        }
+
+        given .args-for: "post", :PARS{ :5x-times } {
+            isa-ok $_, Hash;
+            is-deeply $_, %(
+                :title("post title 18"),
+                :body("post title 18\n" x 5),
+                :tags(set <tag1 tag2 tag3>),
+            )
+        }
+    }, "PARS"
 }
 
 done-testing;

@@ -34,6 +34,12 @@ class Factory is Any {
     has UInt $.counter-by-model   = 0;
     has UInt $.global-counter     = 0;
 
+    has %!PARS;
+
+    method PAR(Str $name) is rw {
+        %!PARS{ $name }
+    }
+
     method ^attr($fac, $name)   { $fac.^attributes.first(*.name eq $name) }
     method ^data($fac)   is rw  { $fac.^attr('$!d').get_value: $fac }
     method ^traits($fac) is rw  { $fac.^attr('%!traits').get_value: $fac }
@@ -49,6 +55,8 @@ class Factory is Any {
         $data.set_value: $o, my % = |$data.get_value($o), |%pars;
         my $traits = $o.^attr: '%!traits';
         $traits.set_value: $o, my % = |$o.^traits;
+        my $PARS = $o.^attr: '%!PARS';
+        $PARS.set_value: $o, my % = |$PARS.get_value($o), |(%pars<PARS> // %());
         $o
     }
     method ^add-trait($fac, Str $name, &block) {
@@ -109,8 +117,10 @@ multi method args-for(Str $fname, +@traits, *%pars --> Hash()) {
             die "Couldn't find trait '$trait-name' for factory '{ $factory.factory-name }'"
         }
     }
+    my %meths := $factory.^methods.map(*.name).Set;
     my %data = |$factory.^data, |%pars;
     %data.kv.map: -> $k, $v {
+        next if $k eq "PARS";
         $k => $v ~~ Callable ?? $v.($factory) !! $v
     },
 }
