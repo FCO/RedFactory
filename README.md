@@ -9,9 +9,11 @@ SYNOPSIS
 ========
 
 ```raku
-use Test;
 use Red;
-use RedFactory;
+
+# Your DB schema
+
+model Post {...}
 
 model Person {
    has UInt    $.id          is serial;
@@ -19,7 +21,21 @@ model Person {
    has Str     $.last-name   is column;
    has Str     $.email       is column;
    has Instant $.disabled-at is column{ :nullable };
+   has Post    @.posts       is relationship(*.author-id, :model(Post));
 }
+
+model Post {
+    has UInt    $.id         is serial;
+    has Str     $.title      is column;
+    has Str     $.body       is column;
+    has UInt    $!author-id  is referencing(*.id, :model(Person));
+    has Person  $.author     is relationship(*.author-id, :model(Person));
+    has Instant $.created-at is column = now;
+}
+
+# Your factory configuration
+
+use RedFactory;
 
 factory "person", :model(Person), {
 
@@ -27,44 +43,34 @@ factory "person", :model(Person), {
    .last-name  = "doe";
    .email      = { "{ .first-name }{ .PAR("number") // .counter-by-model }@domain.com" }
 
+   .posts      = { factory-args .PAR("num-of-posts") // 0, "post" }
+
    trait "disabled", {
       .disabled-at = now
    }
 }
 
-RedFactory.run: {
+factory "post", :model(Post), {
 
-   given .create: "person" {
-    is .first-name, "john";
-    is .last-name,  "doe";
-    is .email,      "john1@domain.com";
-   }
+    .title = { "Post title { .counter-by-model }" };
+    .body  = { (.title ~ "\n") x (.PAR("title-repetition") // 3) }
 
-   given .create: "person", :first-name<peter>, :last-name<parker> {
-    is .first-name, "peter";
-    is .last-name,  "parker";
-    is .email,      "peter2@domain.com";
-   }
-
-   given .create: "person", :email<bla@ble.com> {
-    is .first-name, "john";
-    is .last-name,  "doe";
-    is .email,      "bla@ble.com";
-   }
-
-   given .create: "person", "disabled" {
-    is .first-name, "john";
-    is .last-name,  "doe";
-    is .email,      "john4@domain.com";
-    ok .disabled-at;
-   }
-
-   given .create: "person", :PARS{ :42number } {
-    is .first-name, "john";
-    is .last-name,  "doe";
-    is .email,      "john42@domain.com";
-   }
 }
+
+# Testing your imaginary controller helper
+
+use Test;
+
+my $*RED-DB = factory-db;
+
+my &get-recent-author's-posts'-titles = get-controller's-help("get-recent-author's-posts");
+
+# Create the needed person with posts
+my $author = factory-create "person", :PARS{ :10num-of-posts };
+
+my @posts = get-recent-author's-posts'-titles $author.id, 3;
+
+is-deeply @posts, ["Post title 10", "Post title 9", "Post title 8"];
 ```
 
 DESCRIPTION

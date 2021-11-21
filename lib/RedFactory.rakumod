@@ -80,7 +80,7 @@ method ^factory($, Str $fname, &block, Red::Model :$model is copy) {
         my \Type = Metamodel::ClassHOW.new.new_type: :name("{ $name }Factory");
         Type.^add_parent: Factory;
         Type.^add_attribute: Attribute.new: :name<$!factory-name>, :package(Type), :type(Str), :has_accessor;
-        for $model.^columns -> Attribute $attr {
+        for $model.^attributes -> Attribute $attr {
             my $attr-name = $attr.name.substr(2);
             Type.^add_attribute: my $a = Attribute.new: :name($attr.name), :package(Type), :type($attr.type), :has_accessor;
             Type.^add_method: $attr-name, my method (\SELF:) is rw {
@@ -108,6 +108,12 @@ method ^factory($, Str $fname, &block, Red::Model :$model is copy) {
 
 method ^factories($) { %factory }
 
+sub factory-args(|c) is export { RedFactory.args-for: |c }
+
+multi method args-for(UInt $number, Str $fname, +@traits, *%pars --> Array()) {
+    self.args-for($fname, |@traits, |%pars) xx $number
+}
+
 multi method args-for(Str $fname, +@traits, *%pars --> Hash()) {
     my $factory = %factory{$fname}.^clone: |%pars;
     for @traits -> Str $trait-name {
@@ -125,9 +131,13 @@ multi method args-for(Str $fname, +@traits, *%pars --> Hash()) {
     },
 }
 
+sub factory-create(|c) is export { RedFactory.create: |c }
+
 multi method create(Str $fname, +@traits, *%pars) {
     %factory{$fname}.^model.^create: |self.args-for: $fname, |@traits, |%pars
 }
+
+sub factory-new(|c) is export { RedFactory.new: |c }
 
 multi method new(Str $fname, +@traits, *%pars) {
     %factory{$fname}.^model.new: |self.args-for: $fname, |@traits, |%pars
@@ -137,13 +147,17 @@ method schema {
     schema |%cache.keys
 }
 
+sub factory-db(|c) is export { RedFactory.database: |c }
+
 method database {
-    database "SQLite";
+    my $*RED-DB = database "SQLite";
+    self.schema.drop.create;
+    $*RED-DB
 }
 
+sub factory-run(|c) is export { RedFactory.run: |c }
 method run(&block) {
     my $*RED-DB = self.database;
-    self.schema.create;
     block self
 }
 
@@ -157,9 +171,11 @@ RedFactory - A factory for testing code using Red
 
 =begin code :lang<raku>
 
-use Test;
 use Red;
-use RedFactory;
+
+# Your DB schema
+
+model Post {...}
 
 model Person {
    has UInt    $.id          is serial;
@@ -167,7 +183,21 @@ model Person {
    has Str     $.last-name   is column;
    has Str     $.email       is column;
    has Instant $.disabled-at is column{ :nullable };
+   has Post    @.posts       is relationship(*.author-id, :model(Post));
 }
+
+model Post {
+    has UInt    $.id         is serial;
+    has Str     $.title      is column;
+    has Str     $.body       is column;
+    has UInt    $!author-id  is referencing(*.id, :model(Person));
+    has Person  $.author     is relationship(*.author-id, :model(Person));
+    has Instant $.created-at is column = now;
+}
+
+# Your factory configuration
+
+use RedFactory;
 
 factory "person", :model(Person), {
 
@@ -175,44 +205,34 @@ factory "person", :model(Person), {
    .last-name  = "doe";
    .email      = { "{ .first-name }{ .PAR("number") // .counter-by-model }@domain.com" }
 
+   .posts      = { factory-args .PAR("num-of-posts") // 0, "post" }
+
    trait "disabled", {
       .disabled-at = now
    }
 }
 
-RedFactory.run: {
+factory "post", :model(Post), {
 
-   given .create: "person" {
-    is .first-name, "john";
-    is .last-name,  "doe";
-    is .email,      "john1@domain.com";
-   }
+    .title = { "Post title { .counter-by-model }" };
+    .body  = { (.title ~ "\n") x (.PAR("title-repetition") // 3) }
 
-   given .create: "person", :first-name<peter>, :last-name<parker> {
-    is .first-name, "peter";
-    is .last-name,  "parker";
-    is .email,      "peter2@domain.com";
-   }
-
-   given .create: "person", :email<bla@ble.com> {
-    is .first-name, "john";
-    is .last-name,  "doe";
-    is .email,      "bla@ble.com";
-   }
-
-   given .create: "person", "disabled" {
-    is .first-name, "john";
-    is .last-name,  "doe";
-    is .email,      "john4@domain.com";
-    ok .disabled-at;
-   }
-
-   given .create: "person", :PARS{ :42number } {
-    is .first-name, "john";
-    is .last-name,  "doe";
-    is .email,      "john42@domain.com";
-   }
 }
+
+# Testing your imaginary controller helper
+
+use Test;
+
+my $*RED-DB = factory-db;
+
+my &get-recent-author's-posts'-titles = get-controller's-help("get-recent-author's-posts'-titles");
+
+# Create the needed person with posts
+my $author = factory-create "person", :PARS{ :10num-of-posts };
+
+my @posts = get-recent-author's-posts'-titles $author.id, 3;
+
+is-deeply @posts, ["Post title 10", "Post title 9", "Post title 8"];
 
 =end code
 
