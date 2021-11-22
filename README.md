@@ -70,7 +70,8 @@ use Test;
 
 my $*RED-DB = factory-db;
 
-my &get-recent-author's-posts'-titles = get-controller's-help("get-recent-author's-posts'-titles");
+my &get-recent-author's-posts'-titles =
+    get-controller's-help("get-recent-author's-posts'-titles");
 
 # Create the needed person with posts
 my $author = factory-create "person", :PARS{ :10num-of-posts };
