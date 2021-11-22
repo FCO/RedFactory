@@ -181,9 +181,8 @@ RedFactory - A factory for testing code using Red
 
 =begin code :lang<raku>
 
+# Your DB schema --------------------------------------------------------------------------------------
 use Red;
-
-# Your DB schema
 
 model Post {...}
 
@@ -205,8 +204,8 @@ model Post {
     has Instant $.created-at is column = now;
 }
 
-# Your factory configuration
 
+# Your factory configuration --------------------------------------------------------------------------
 use RedFactory;
 
 factory "person", :model(Person), {
@@ -236,8 +235,8 @@ factory "post", :model(Post), {
     }
 }
 
-# Testing your imaginary controller helper
 
+# Testing your imaginary controller helper ------------------------------------------------------------
 use Test;
 
 my $*RED-DB = factory-db;
