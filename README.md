@@ -9,7 +9,7 @@ SYNOPSIS
 ========
 
 ```raku
-# Your DB schema --------------------------------------------------------------------------------------
+# Your DB schema ---------------------------------------------------------
 use Red;
 
 model Post {...}
@@ -33,7 +33,7 @@ model Post {
 }
 
 
-# Your factory configuration --------------------------------------------------------------------------
+# Your factory configuration ---------------------------------------------
 use RedFactory;
 
 factory "person", :model(Person), {
@@ -64,7 +64,7 @@ factory "post", :model(Post), {
 }
 
 
-# Testing your imaginary controller helper ------------------------------------------------------------
+# Testing your imaginary controller helper -------------------------------
 use Test;
 
 my $*RED-DB = factory-db;
