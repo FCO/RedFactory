@@ -46,55 +46,55 @@ factory "post", :model(Post), {
 RedFactory.run: {
     subtest {
         given .args-for: "post" {
-            isa-ok $_, Hash;
-            is-deeply $_, %(
+            isa-ok $_, Map;
+            is-deeply $_, Map.new((
                 :title("post title 1"),
                 :body("post title 1\n" x 10),
                 :tags(set <tag1 tag2 tag3>),
-            )
+            ))
         }
 
         given .args-for: "post", "deleted" {
-            isa-ok $_, Hash;
-            is-deeply $_, %(
+            isa-ok $_, Map;
+            is-deeply $_, Map.new((
                 :title("post title 2"),
                 :body("post title 2\n" x 10),
                 :tags(set <tag1 tag2 tag3>),
                 :deleted,
-            )
+            ))
         }
 
         given .args-for: "post", :title<bla> {
-            isa-ok $_, Hash;
-            is-deeply $_, %(
+            isa-ok $_, Map;
+            is-deeply $_, Map.new((
                 :title("bla"),
                 :body("bla\n" x 10),
                 :tags(set <tag1 tag2 tag3>),
-            )
+            ))
         }
 
         given .args-for: "post", :title{ "ble{ .counter-by-factory }" }, :tags(set <a e i o u>) {
-            isa-ok $_, Hash;
-            is-deeply $_, %(
+            isa-ok $_, Map;
+            is-deeply $_, Map.new((
                 :title("ble4"),
                 :body("ble4\n" x 10),
                 :tags(set <a e i o u>),
-            )
+            ))
         }
 
         given .args-for: "post", "deleted", :!deleted {
-            isa-ok $_, Hash;
-            is-deeply $_, %(
+            isa-ok $_, Map;
+            is-deeply $_, Map.new((
                 :title("post title 5"),
                 :body("post title 5\n" x 10),
                 :tags(set <tag1 tag2 tag3>),
                 :!deleted,
-            )
+            ))
         }
     }, "args-for";
 
     subtest {
-        given .new: "post" {
+        given .manufacture: "post" {
             isa-ok $_, Post;
             isa-ok $_, Red::Model;
             ok !.^is-on-db;
@@ -104,7 +104,7 @@ RedFactory.run: {
             is .deleted, False;
         }
 
-        given .new: "post", "deleted" {
+        given .manufacture: "post", "deleted" {
             isa-ok $_, Post;
             isa-ok $_, Red::Model;
             ok !.^is-on-db;
@@ -114,7 +114,7 @@ RedFactory.run: {
             is .deleted, True;
         }
 
-        given .new: "post", :title<bla> {
+        given .manufacture: "post", :title<bla> {
             isa-ok $_, Post;
             isa-ok $_, Red::Model;
             ok !.^is-on-db;
@@ -124,7 +124,7 @@ RedFactory.run: {
             is .deleted, False;
         }
 
-        given .new: "post", :title{ "ble{ .counter-by-factory }" }, :tags(set <a e i o u>) {
+        given .manufacture: "post", :title{ "ble{ .counter-by-factory }" }, :tags(set <a e i o u>) {
             isa-ok $_, Post;
             isa-ok $_, Red::Model;
             ok !.^is-on-db;
@@ -134,7 +134,7 @@ RedFactory.run: {
             is .deleted, False;
         }
 
-        given .new: "post", "deleted", :!deleted {
+        given .manufacture: "post", "deleted", :!deleted {
             isa-ok $_, Post;
             isa-ok $_, Red::Model;
             ok !.^is-on-db;
@@ -143,7 +143,7 @@ RedFactory.run: {
             is-deeply .tags, set <tag1 tag2 tag3>;
             is .deleted, False;
         }
-    }, "new";
+    }, "manufacture";
 
     subtest {
         given .create: "post" {
@@ -208,7 +208,7 @@ RedFactory.run: {
             is .deleted, False;
         }
 
-        given .new: "post", :PARS{ :2x-times } {
+        given .manufacture: "post", :PARS{ :2x-times } {
             isa-ok $_, Post;
             isa-ok $_, Red::Model;
             ok !.^is-on-db;
@@ -219,12 +219,12 @@ RedFactory.run: {
         }
 
         given .args-for: "post", :PARS{ :5x-times } {
-            isa-ok $_, Hash;
-            is-deeply $_, %(
+            isa-ok $_, Map;
+            is-deeply $_, Map.new((
                 :title("post title 18"),
                 :body("post title 18\n" x 5),
                 :tags(set <tag1 tag2 tag3>),
-            )
+            ))
         }
     }, "PARS"
 }

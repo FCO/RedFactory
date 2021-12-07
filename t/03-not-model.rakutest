@@ -1,0 +1,32 @@
+use Test;
+use RedFactory;
+
+class Bla {
+   has $.a;
+   has $.b;
+}
+
+class Ble {
+   has $.c;
+   has $.d;
+   has @.blas;
+   has Bla @.blas2;
+}
+
+factory "bla", :model(Bla), { .a = "aaa"; .b = { .a x 3 } }
+factory "ble", :model(Ble), {
+    .c     = "ccc";
+    .d     = { .c x 3 }
+    .blas  = factory-manufacture 3, "bla";
+    .blas2 = factory-manufacture 3, "bla";
+}
+
+is-deeply factory-manufacture("bla"), Bla.new: :a<aaa>, :b<aaaaaaaaa>;
+is-deeply factory-manufacture("bla", :a<changed>), Bla.new: :a<changed>, :b<changedchangedchanged>;
+
+my $ble = factory-manufacture("ble");
+my @blas = Bla.new(:a<aaa>, :b<aaaaaaaaa>) xx 3;
+my %args is Map = :c<ccc>, :d<ccccccccc>, :@blas, :blas2(@blas);
+is-deeply $ble, Ble.new: |%args;
+
+done-testing
