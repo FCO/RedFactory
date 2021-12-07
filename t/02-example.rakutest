@@ -79,17 +79,17 @@ RedFactory.run: {
         :first-name<john>,
         :last-name<doe>,
         :email<john6@domain.com>,
-        :posts[
+        :posts(
             %(
                 :title("Post title 1"),
                 :body("Post title 1\n" x 3),
-            ),
+            ).Map,
             %(
                 :title("Post title 2"),
                 :body("Post title 2\n" x 3),
-            ),
-        ]
-    );
+            ).Map,
+        )
+    ).Map;
 
     given factory-create("person", :PARS{ :2num-of-posts }) {
         is .first-name, "john";

@@ -3,13 +3,13 @@ use Red::Database;
 use Red::Schema;
 unit class RedFactory:ver<0.0.1>:auth<cpan:fco>;
 
-my %cache{ Red::Model };
+my %cache{ Mu };
 my %factory;
-my %factory-counter{Str}      is default(0);
-my %model-counter{Red::Model} is default(0);
+my %factory-counter{Str} is default(0);
+my %model-counter{Mu}    is default(0);
 my $global-counter = 0;
 
-sub factory(Str $fname, &block?, Red::Model :$model) is export {
+sub factory(Str $fname, &block?, Mu:U :$model) is export {
     if $*REDFACTORY {
         %factory{$fname} = my $o = $*REDFACTORY.^clone;
         {
@@ -27,7 +27,7 @@ sub trait($name, &block) is export {
 }
 
 class Factory is Any {
-    has $!d;
+    has %!d;
     has %!traits;
 
     has UInt $.counter-by-factory = 0;
@@ -41,7 +41,7 @@ class Factory is Any {
     }
 
     method ^attr($fac, $name)   { $fac.^attributes.first(*.name eq $name) }
-    method ^data($fac)   is rw  { $fac.^attr('$!d').get_value: $fac }
+    method ^data($fac)   is rw  { $fac.^attr('%!d').get_value: $fac }
     method ^traits($fac) is rw  { $fac.^attr('%!traits').get_value: $fac }
     method ^model($fac)  is rw  { $ }
     method ^clone($fac, *%pars) {
@@ -51,7 +51,7 @@ class Factory is Any {
             counter-by-model   => $fac!counter-by-model,
             global-counter     => $fac!global-counter,
         ;
-        my $data = $o.^attr: '$!d';
+        my $data = $o.^attr: '%!d';
         $data.set_value: $o, my % = |$data.get_value($o), |%pars;
         my $traits = $o.^attr: '%!traits';
         $traits.set_value: $o, my % = |$o.^traits;
@@ -69,15 +69,16 @@ class Factory is Any {
     method !global-counter     { ++$global-counter }
 }
 
-method ^factory($, Str $fname, &block, Red::Model :$model is copy) {
-    if $model =:= Red::Model {
+method ^factory($, Str $fname, &block, Mu:U :$model is copy) {
+    if $model =:= Mu {
         require ::($fname);
         $model = ::($fname);
     }
 
     my Mu %data{ Attribute };
     my $name = $model.^name;
-    my \t = %cache{ $model.^orig } // do {
+    my $orig = $model ~~ Red::Model ?? $model.^orig !! $model;
+    my \t = %cache{ $orig } // do {
         my \Type = Metamodel::ClassHOW.new.new_type: :name("{ $name }Factory");
         Type.^add_parent: Factory;
         Type.^add_attribute: Attribute.new: :name<$!factory-name>, :package(Type), :type(Str), :has_accessor;
@@ -90,15 +91,20 @@ method ^factory($, Str $fname, &block, Red::Model :$model is copy) {
                         my $val = $a.get_value: SELF;
                         get-value SELF, $val
                     },
-                    STORE => method ($value) {
-                        $a.set_value: SELF, SELF.^data{ $attr-name } = $value
+                    STORE => method (\value) {
+                        do if value ~~ Seq && $attr.type ~~ Positional {
+                            SELF.^data{ $attr-name } := value.cache;
+                            $a.set_value: SELF, value.list;
+                        } else {
+                            $a.set_value: SELF, SELF.^data{ $attr-name } = value<>
+                        }
                     },
                 ;
             }
         }
         Type.^compose;
         Type.^model = $model;
-        %cache{ $model.^orig } = Type;
+        %cache{ $orig } = Type;
     }
 
     %factory{$fname} = my $*REDFACTORY = t.new: |%data;
@@ -110,11 +116,13 @@ method ^factories($) { %factory }
 
 sub factory-args(|c) is export { RedFactory.args-for: |c }
 
-multi method args-for(UInt $number, Str $fname, +@traits, *%pars --> Array()) {
+subset FName of Str where { %factory{$_}:exists || fail "Factory called '$_' does not exist" }
+
+multi method args-for(UInt $number, FName $fname, +@traits, *%pars --> List()) {
     self.args-for($fname, |@traits, |%pars) xx $number
 }
 
-multi method args-for(Str $fname, +@traits, *%pars --> Hash()) {
+multi method args-for(FName $fname, +@traits, *%pars --> Map()) {
     my $factory = %factory{$fname}.^clone: |%pars;
     for @traits -> Str $trait-name {
         with $factory.^traits{ $trait-name } -> &trait {
@@ -125,21 +133,46 @@ multi method args-for(Str $fname, +@traits, *%pars --> Hash()) {
     }
     my %meths := $factory.^methods.map(*.name).Set;
     my %data = |$factory.^data, |%pars;
-    %data.kv.map: -> $k, $v {
+    |%data.kv.map: -> $k, $v {
         next if $k eq "PARS";
         $k => get-value $factory, $v
     },
 }
 
+multi factory-manufacture(UInt $number, FName $name, +@traits, *%pars) is export {
+    factory-manufacture($name, |@traits, |%pars) xx $number
+}
+
+multi factory-manufacture(FName $fname, +@traits, *%pars) is export {
+    RedFactory.manufacture($fname, |@traits, |%pars)
+}
+
+proto method manufacture(|) is export {*}
+multi method manufacture(UInt $number, FName $name, +@traits, *%pars) {
+    self.manufacture($name, |@traits, |%pars) xx $number
+}
+
+multi method manufacture(FName $fname, +@traits, *%pars) {
+    %factory{$fname}.^model.new: |RedFactory.args-for: $fname, |@traits, |%pars
+}
+
 sub factory-create(|c) is export { RedFactory.create: |c }
 
-multi method create(Str $fname, +@traits, *%pars) {
+multi method create(UInt $number, FName $fname, +@traits, *%pars) {
+    self.create($fname, |@traits, |%pars) xx $number
+}
+
+multi method create(FName $fname, +@traits, *%pars) {
     %factory{$fname}.^model.^create: |self.args-for: $fname, |@traits, |%pars
 }
 
-sub factory-new(|c) is export { RedFactory.new: |c }
+sub factory-instanciate(|c) is export { RedFactory.instanciate: |c }
 
-multi method new(Str $fname, +@traits, *%pars) {
+multi method instanciate(UInt $number, FName $fname, +@traits, *%pars) {
+    self.instanciate($fname, |@traits, |%pars) xx $number
+}
+
+multi method instanciate(FName $fname, +@traits, *%pars) {
     %factory{$fname}.^model.new: |self.args-for: $fname, |@traits, |%pars
 }
 
@@ -165,7 +198,9 @@ sub get-value(Factory $factory, $v) {
         do if $v ~~ Callable {
             my %PARS := $factory.^PARS<>;
             my %pars is Set = $v.signature.params.grep(*.named).map: *.name.substr: 1;
-            $v.(|($factory if $v.count), |%PARS.grep({ %pars{ .key } }).Hash)
+            $v.(|($factory if $v.count), |%PARS.grep({ %pars{ .key } }).Map)
+        } elsif $v ~~ Positional {
+            |$v
         } else {
             $v
         }
