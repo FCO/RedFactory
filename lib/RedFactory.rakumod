@@ -1,7 +1,7 @@
 use Red::Model;
 use Red::Database;
 use Red::Schema;
-unit class RedFactory:ver<0.0.2>:auth<cpan:fco>;
+unit class RedFactory:ver<0.0.2>:auth<zef:FCO>;
 
 my %cache{ Mu };
 my %factory;
