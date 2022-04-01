@@ -1,6 +1,7 @@
 Revision history for RedFactory
 
 {{$NEXT}}
+    - Move to zef ecosystem
 
 0.0.2  2021-12-07T23:16:45Z
     - Accept not Red models
