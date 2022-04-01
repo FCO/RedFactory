@@ -1,6 +1,8 @@
 Revision history for RedFactory
 
 {{$NEXT}}
+
+0.0.3  2022-04-01T22:03:34+01:00
     - Move to zef ecosystem
 
 0.0.2  2021-12-07T23:16:45Z
